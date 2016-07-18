@@ -247,9 +247,7 @@ def test_ec(ac=None, rd=None):
         click[len(click) // 2] = 1.
         click[len(click) // 2 + 1] = -1.
         # noise: RMS 0.03, should fail both 'fullfile' and 'windowed'
-        nsamp = int(ec.fs / 8)
-        noise = np.random.normal(scale=0.03, size=(nsamp,))
-        dur = nsamp / ec.fs
+        noise = np.random.normal(scale=0.03, size=(int(ec.fs / 4),))
         ec.set_rms_checking(None)
         ec.load_buffer(click)  # should go unchecked
         ec.load_buffer(noise)  # should go unchecked
@@ -276,7 +274,6 @@ def test_ec(ac=None, rd=None):
         #
         assert_raises(RuntimeError, ec.start_stimulus)  # order violation
         ec.start_stimulus(start_of_trial=False)         # should work
-        ec.wait_secs(dur)  # othewise ec._playing bites us later
         assert_raises(RuntimeError, ec.trial_ok)        # order violation
         ec.stop()
         # only binary for TTL
@@ -304,23 +301,19 @@ def test_ec(ac=None, rd=None):
         # double-check
         assert_raises(RuntimeError, ec.start_stimulus)  # order violation
         ec.start_stimulus(start_of_trial=False)         # should work
-        ec.wait_secs(dur)  # othewise ec._playing bites us later
         assert_raises(RuntimeError, ec.trial_ok)        # order violation
         ec.stop()
 
         ec.flip(-np.inf)
         ec.estimate_screen_fs()
         ec.play()
-        ec.wait_secs(dur)  # othewise ec._playing bites us later
         ec.call_on_every_flip(None)
         ec.call_on_next_flip(ec.start_noise())
         ec.stop()
         ec.start_stimulus(start_of_trial=False)
-        ec.wait_secs(dur)  # othewise ec._playing bites us later
         ec.call_on_next_flip(ec.stop_noise())
         ec.stop()
         ec.start_stimulus(start_of_trial=False)
-        ec.wait_secs(dur)  # othewise ec._playing bites us later
         ec.get_mouse_position()
         ec.listen_clicks()
         ec.get_clicks()
