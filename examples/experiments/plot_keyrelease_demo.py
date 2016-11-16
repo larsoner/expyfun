@@ -52,7 +52,7 @@ with ExperimentController('KeyPressAndReleaseDemo', screen_num=0,
             # redraw text with updated disp_time
             ec.screen_text(instruction.format(disp_time))
             ec.flip()
-    events = ec.get_presses(kind='both')
+    events = ec.get_presses(kind='both', return_kinds=True)
     ec.write_data_line('listen / while / get_presses', events)
     if not len(events):
         message = 'no keys pressed'
