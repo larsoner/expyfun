@@ -1028,8 +1028,8 @@ class ExperimentController(object):
         # this waits until everything is called, including last draw
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
         gl.glBegin(gl.GL_POINTS)
-        if not self._enable_video:
-            gl.glColor4f(0, 0, 0, 0)
+        #if not self._enable_video:
+        #gl.glColor4f(0, 0, 0, 0)
         gl.glVertex2i(10, 10)
         gl.glEnd()
         if self.safe_flipping:

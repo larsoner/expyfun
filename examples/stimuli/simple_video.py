@@ -28,9 +28,9 @@ with ExperimentController(**ec_args) as ec:
     while not ec.video.finished:
         if ec.video.playing:
             fliptime = ec.flip()
-        screenshot = ec.screenshot()
         if building_doc:
             break
+    screenshot = ec.screenshot()
     ec.delete_video()
     ec.flip()
     ec.screen_prompt('video over', max_wait=1.)
