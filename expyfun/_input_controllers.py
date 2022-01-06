@@ -17,6 +17,14 @@ from .visual import (Triangle, Rectangle, Circle, Diamond, ConcentricCircles,
 from ._utils import clock, string_types, logger
 
 
+class DummyResponse():
+    def __init__(self, ec):
+        self.master_clock = ec._master_clock
+
+    def check_force_quit(self, keys=None):
+        return
+
+
 class Keyboard(object):
     """Retrieve presses from various devices.
 

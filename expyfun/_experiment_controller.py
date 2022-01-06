@@ -28,7 +28,8 @@ from ._tdt_controller import TDTController
 from ._trigger_controllers import ParallelTrigger
 from ._sound_controllers import (SoundPlayer, SoundCardController,
                                  _AUTO_BACKENDS)
-from ._input_controllers import Keyboard, CedrusBox, Mouse, Joystick
+from ._input_controllers import (Keyboard, CedrusBox, Mouse, Joystick,
+                                 DummyResponse)
 from .visual import Text, Rectangle, Video, _convert_color
 from ._git import assert_version, __version__
 
@@ -56,8 +57,8 @@ class ExperimentController(object):
         specific to the backend (see :class:`TDTController` and
         :class:`SoundCardController`).
     response_device : str | None
-        Must be 'keyboard', 'cedrus', or 'tdt'.  If None, the type will be read
-        from the machine configuration file.
+        Must be 'keyboard', 'cedrus', 'tdt', or 'off'.  If None, the type will
+        be read from the machine configuration file.
     stim_rms : float
         The RMS amplitude that the stimuli were generated at (strongly
         recommended to be 0.01).
@@ -77,6 +78,8 @@ class ExperimentController(object):
         Window size to use. If list or array, it must have two elements.
         If None, the default will be read from the system config,
         falling back to [1920, 1080] if no system config is found.
+        If (0, 0) is used, no window is created (useful for sound-only
+        experiments).
     screen_num : int | None
         Screen to use. If None, the default will be read from the system
         config, falling back to 0 if no system config is found.
@@ -176,10 +179,8 @@ class ExperimentController(object):
 
         # put anything that could fail in this block to ensure proper cleanup!
         try:
-            self._setup_event_loop()
             self.set_rms_checking(check_rms)
             # Check Pyglet version for safety
-            _check_pyglet_version(raise_error=True)
             # assure proper formatting for force-quit keys
             if force_quit is None:
                 force_quit = ['lctrl', 'rctrl']
@@ -321,7 +322,7 @@ class ExperimentController(object):
             #
             if response_device is None:
                 response_device = get_config('RESPONSE_DEVICE', 'keyboard')
-            if response_device not in ['keyboard', 'tdt', 'cedrus']:
+            if response_device not in ['keyboard', 'tdt', 'cedrus', 'off']:
                 raise ValueError('response_device must be "keyboard", "tdt", '
                                  '"cedrus", or None')
             self._response_device = response_device
@@ -403,8 +404,11 @@ class ExperimentController(object):
                                      'tdt is used for audio')
                 self._response_handler = self._ac
                 self._ac._add_keyboard_init(self, force_quit)
-            else:  # response_device == 'cedrus'
+            elif response_device == 'cedrus':
                 self._response_handler = CedrusBox(self, force_quit)
+            else:
+                assert response_device == 'off'
+                self._response_handler = DummyResponse(self)
 
             # Joystick
             if joystick:
@@ -463,7 +467,6 @@ class ExperimentController(object):
             self._id_call_dict['ttl_id'] = self._stamp_binary_id
 
             # other basic components
-            self._mouse_handler = Mouse(self)
             t = np.arange(44100 // 3) / 44100.
             car = sum([np.sin(2 * np.pi * f * t) for f in [800, 1000, 1200]])
             self._beep = None
@@ -908,6 +911,8 @@ class ExperimentController(object):
         # which is a while loop with the contents of our dispatch_events.
 
     def _dispatch_events(self):
+        if self._win is None:
+            return
         from pyglet.app import platform_event_loop
         self._win.dispatch_events()
         # timeout = self._event_loop.idle()
@@ -922,6 +927,11 @@ class ExperimentController(object):
 
 # ############################### OPENGL METHODS ##############################
     def _setup_window(self, window_size, exp_name, full_screen, screen):
+        if (window_size == 0).any():
+            self._win = None
+            return
+        _check_pyglet_version(raise_error=True)
+        self._setup_event_loop()
         import pyglet
         from pyglet import gl
         # Use 16x sampling here
@@ -981,6 +991,7 @@ class ExperimentController(object):
                                'screen resolution set incorrectly?'
                                % (window_size, got_size))
         self._dispatch_events()
+        self._mouse_handler = Mouse(self)
         logger.info('Initialized %s window on screen %s with DPI %0.2f'
                     % (window_size, screen, self.dpi))
 
@@ -1015,6 +1026,8 @@ class ExperimentController(object):
         `call_on_next_flip`, followed by functions added with
         `call_on_every_flip`.
         """
+        if self._win is None:
+            return self.get_time()
         from pyglet import gl
         if when is not None:
             self.wait_until(when)
@@ -2146,7 +2159,7 @@ class ExperimentController(object):
         logger.info('Expyfun: Exiting')
         # do external cleanups
         cleanup_actions = []
-        if hasattr(self, '_win'):
+        if getattr(self, '_win', None) is not None:
             cleanup_actions.append(self._win.close)
         cleanup_actions.extend([self.stop_noise, self.stop])
         cleanup_actions.extend(self._extra_cleanup_fun)
